@@ -1,0 +1,23 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax-and-parser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Python syntax
+        run: python -m compileall -q custom_components/nourish
+      - name: JSON syntax
+        run: |
+          python -m json.tool custom_components/nourish/manifest.json > /dev/null
+          python -m json.tool custom_components/nourish/strings.json > /dev/null
+          python -m json.tool custom_components/nourish/translations/en.json > /dev/null
+      - name: Parser tests
+        run: python -m unittest discover -s tests -v
