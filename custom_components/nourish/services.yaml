@@ -1,0 +1,3 @@
+sync_now:
+  name: Sync now
+  description: Fetch today's nutrition goals and progress immediately.
