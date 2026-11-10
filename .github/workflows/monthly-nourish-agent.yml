@@ -1,0 +1,157 @@
+name: Monthly Nourish maintenance agent
+
+on:
+  schedule:
+    - cron: "41 10 5 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monthly-nourish-maintenance
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    outputs:
+      has_patch: ${{ steps.diff.outputs.has_patch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Require OpenAI API key
+        env:
+          PRESENT: ${{ secrets.OPENAI_API_KEY != '' }}
+        run: |
+          if [ "$PRESENT" != "true" ]; then
+            echo "::error::Add OPENAI_API_KEY in repository Settings > Secrets and variables > Actions to enable the monthly agent."
+            exit 1
+          fi
+      - name: Research recent official public upstream changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          import urllib.request
+
+          since = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=50)).strftime("%Y-%m-%dT%H:%M:%SZ")
+          urls = {
+              "home_assistant_core_releases": "https://api.github.com/repos/home-assistant/core/releases?per_page=5",
+              "coordinator_changes": "https://api.github.com/repos/home-assistant/core/commits?path=homeassistant/helpers/update_coordinator.py&since=" + since + "&per_page=25",
+              "home_assistant_developer_docs": "https://api.github.com/repos/home-assistant/developers.home-assistant/commits?since=" + since + "&per_page=20",
+              "opengym_changes": "https://api.github.com/repos/ChadJPetersen/home-assistant-opengym/commits?since=" + since + "&per_page=20",
+              "nourish_open_issues": "https://api.github.com/repos/ChadJPetersen/home-assistant-nourish/issues?state=open&per_page=30"
+          }
+          results = {"generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "sources": {}}
+          for label, url in urls.items():
+              try:
+                  req = urllib.request.Request(url, headers={
+                      "Accept": "application/vnd.github+json",
+                      "User-Agent": "nourish-home-assistant-maintenance",
+                      "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                  })
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      raw = json.load(response)
+                  if "releases" in label:
+                      results["sources"][label] = [{
+                          "tag": r.get("tag_name"), "url": r.get("html_url"),
+                          "notes": (r.get("body") or "")[:2800]
+                      } for r in raw[:5]]
+                  elif label == "nourish_open_issues":
+                      results["sources"][label] = [{
+                          "title": r.get("title"), "url": r.get("html_url"),
+                          "body": (r.get("body") or "")[:1200]
+                      } for r in raw if "pull_request" not in r][:25]
+                  else:
+                      results["sources"][label] = [{
+                          "title": (r.get("commit", {}).get("message") or "")[:300],
+                          "url": r.get("html_url")
+                      } for r in raw[:25]]
+              except Exception as exc:
+                  results["sources"][label] = {"error": type(exc).__name__}
+          with open(".maintenance-research.json", "w", encoding="utf-8") as stream:
+              json.dump(results, stream, indent=2)
+          PY
+      - name: Propose justified, scoped compatibility improvements
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          prompt-file: .github/prompts/monthly-nourish-maintenance.md
+      - name: Validate code and release notes
+        run: |
+          python -m compileall -q custom_components/nourish
+          python -m json.tool custom_components/nourish/manifest.json > /dev/null
+          python -m json.tool custom_components/nourish/strings.json > /dev/null
+          python -m json.tool custom_components/nourish/translations/en.json > /dev/null
+          python -m unittest discover -s tests -v
+          python tests/check_release.py
+      - name: Export relevant patch if changed
+        id: diff
+        run: |
+          git add -N custom_components/nourish tests README.md CHANGELOG.md || true
+          git diff --binary -- custom_components/nourish tests README.md CHANGELOG.md > /tmp/nourish-maintenance.patch
+          if test -s /tmp/nourish-maintenance.patch; then
+            echo "has_patch=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_patch=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: steps.diff.outputs.has_patch == 'true'
+        with:
+          name: nourish-maintenance-patch
+          path: /tmp/nourish-maintenance.patch
+
+  open_pr:
+    needs: propose
+    if: needs.propose.outputs.has_patch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: nourish-maintenance-patch
+      - name: Check proposed file boundaries and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check nourish-maintenance.patch
+          git apply nourish-maintenance.patch
+          while IFS= read -r path; do
+            case "$path" in
+              custom_components/nourish/*|tests/*|README.md|CHANGELOG.md) ;;
+              *) echo "Blocked modification to $path"; exit 1 ;;
+            esac
+          done < <(git diff --name-only)
+          python -m compileall -q custom_components/nourish
+          python -m unittest discover -s tests -v
+          python tests/check_release.py
+      - name: Create human-review pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: bot/monthly-nourish-maintenance
+          delete-branch: true
+          commit-message: "chore: propose Nourish integration maintenance improvements"
+          title: "Monthly Nourish integration improvements"
+          body: |
+            Scheduled, review-only agent proposal based on public Home Assistant changes,
+            relevant OpenGym changes, and open Nourish integration issues.
+            
+            No Nourish session or personal nutrition data was accessed.
+            Review API assumptions, tests, changelog, and changes before merging.
+            Integration code changes require a manifest version bump and changelog entry.

@@ -1,0 +1,69 @@
+name: Watch upstream Home Assistant releases
+
+on:
+  schedule:
+    - cron: "29 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open a tracking issue for new monthly Home Assistant release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import urllib.request
+
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "User-Agent": "nourish-home-assistant-version-watch",
+          }
+          req = urllib.request.Request(
+              "https://api.github.com/repos/home-assistant/core/releases/latest",
+              headers=headers,
+          )
+          with urllib.request.urlopen(req, timeout=20) as response:
+              release = json.load(response)
+          tag = release.get("tag_name", "")
+          match = re.match(r"^(?:v)?(\d{4})\.(\d{1,2})(?:\.|$)", tag)
+          if not match:
+              print("No recognized Home Assistant release to track.")
+              raise SystemExit(0)
+          # Track monthly feature releases rather than opening an issue for every patch.
+          series = f"{match.group(1)}.{int(match.group(2))}"
+          title = f"Review Home Assistant {series} compatibility"
+          existing = json.loads(subprocess.check_output(
+              ["gh", "issue", "list", "--repo", os.environ["GH_REPO"],
+               "--state", "all", "--search", f'\"{title}\" in:title',
+               "--json", "title", "--limit", "100"],
+              text=True,
+          ))
+          if any(issue.get("title") == title for issue in existing):
+              print(f"Already tracking Home Assistant {series}.")
+              raise SystemExit(0)
+          body = (
+              f"Home Assistant Core {series} has a public release: {release.get('html_url', '')}\n\n"
+              "Review Nourish integration compatibility (DataUpdateCoordinator, "
+              "config flows, Repairs/reauth, sensors, and Marketplace). "
+              "If there is a concrete change to make, submit a tested PR. "
+              "Do not assume a change is needed, and never include private Nourish tokens.\n\n"
+              "The monthly maintenance agent considers these issues automatically."
+          )
+          subprocess.run(
+              ["gh", "issue", "create", "--repo", os.environ["GH_REPO"],
+               "--title", title, "--body", body],
+              check=True,
+          )
+          PY

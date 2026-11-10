@@ -198,6 +198,27 @@ python -m compileall -q custom_components/nourish
 
 The repository includes a lightweight GitHub Actions test workflow. End-to-end Home Assistant installation, reauthentication behavior, and sensor mapping should be tested before treating the project as production-ready. Contributions and sanitized response *shapes* are welcome, but **never include real credentials, patient IDs, or identifiable nutrition data** in an issue or pull request.
 
+## Automated maintenance and upstream change monitoring
+
+This repository includes two GitHub Actions workflows, inspired by the [Home Assistant openGym maintenance approach](https://github.com/ChadJPetersen/home-assistant-opengym):
+
+- **Upstream compatibility watch** (`.github/workflows/check-upstream.yml`): checks the latest public Home Assistant Core release daily and opens a review issue when a new monthly release is found. It also looks for public OpenGym repository changes relevant to interoperability in the monthly research step. It never accesses your private Nourish session.
+- **Monthly Nourish maintenance agent** (`.github/workflows/monthly-nourish-agent.yml`): on the 5th of each month (UTC), reviews Home Assistant Core changes, integration developer guidance, relevant OpenGym repository activity, and open issues. When an actionable, verifiable improvement exists, Codex proposes targeted code, test, and documentation changes and opens a **pull request for human review**. The workflow never merges into `main` automatically and makes no change if no justified improvement exists.
+
+### One-time setup for the monthly coding agent
+
+The daily upstream check uses the built-in GitHub token and requires **no extra secret**. The monthly coding agent needs an OpenAI API key in **this Nourish repository**, even if you already configured one in a separate OpenGym repository.
+
+1. Open [Nourish repository Settings → Secrets and variables → Actions](https://github.com/ChadJPetersen/home-assistant-nourish/settings/secrets/actions).
+2. Under **Repository secrets**, choose **New repository secret**.
+3. Set the name to exactly `OPENAI_API_KEY` and enter your own API key **in GitHub**, never in chat, the README, an issue, or a committed file.
+4. In **Settings → Actions → General → Workflow permissions**, allow GitHub Actions to create pull requests if your repository settings require it. The agent uses a restricted workspace to propose changes; a separate job has permission to create review PRs.
+5. Open [Actions](https://github.com/ChadJPetersen/home-assistant-nourish/actions), select **Monthly Nourish maintenance agent**, then **Run workflow** to test it without waiting for the next scheduled run.
+
+GitHub Actions and the OpenAI API may have usage charges. The monthly workflow fails visibly with an instruction if the API key is missing; the daily upstream check remains usable independently.
+
+**Boundaries:** The agent is not able to monitor Nourish's private API without authorization, nor can it independently confirm changes to the private JSON response. It uses public releases, repository changes, and user-reported issues as signals. It must not print, request, or commit access tokens, refresh tokens, patient IDs, cookies, sensitive nutrition records, or new undocumented API endpoints. Public release notes and issue text are treated as untrusted research, not as instructions. Suggested improvements are not deployed until you review and merge a PR and update the integration in Marketplace.
+
 ## Branding and trademarks
 
 The community integration includes a **Bloom-inspired, unofficial icon** for identification in Home Assistant. It is a recreation rather than an official Nourish-supplied asset. Nourish's name and original brand mark belong to Nourish, Inc. Their use does not imply affiliation or endorsement; consider obtaining permission before distributing official brand assets.

@@ -1,14 +1,20 @@
-name: Validate
+name: Validate Nourish integration
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   syntax-and-parser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -21,3 +27,10 @@ jobs:
           python -m json.tool custom_components/nourish/translations/en.json > /dev/null
       - name: Parser tests
         run: python -m unittest discover -s tests -v
+      - name: Changelog matches integration version
+        run: python tests/check_release.py
+      - name: Require version bump for changed integration files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python tests/check_release.py --base "$BASE_SHA"
