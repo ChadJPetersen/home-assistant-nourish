@@ -3,14 +3,14 @@
     "step": {
       "user": {
         "title": "Connect Nourish Nutrition",
-        "description": "Follow the setup guide in the GitHub README. Paste the private connection JSON from the browser helper. This JSON includes a sensitive refresh token.",
+        "description": "Follow the [GitHub setup guide](https://github.com/ChadJPetersen/home-assistant-nourish#2-obtain-connection-details) to get your connection details, then paste the private JSON below. **Keep it secret:** the JSON includes a sensitive refresh token.",
         "data": {
           "connection_details": "Connection details (private JSON)"
         }
       },
       "reauth_confirm": {
         "title": "Reconnect Nourish Nutrition",
-        "description": "Nourish rejected your saved session. To repair: (1) Open Nourish and sign in using a private browser window or separate browser profile. (2) Follow the Copy connection details instructions in the integration README. (3) Paste the new private JSON below. (4) Submit to test and reconnect. Do not share the JSON, cookies or tokens.",
+        "description": "Nourish rejected your saved session. To reconnect: (1) Sign in to Nourish in a separate browser profile. (2) Follow the [GitHub reauthentication instructions](https://github.com/ChadJPetersen/home-assistant-nourish#if-authentication-fails-home-assistant-repairs) and run the connection helper. (3) Paste the new private JSON below. (4) Submit to test and reconnect. **Never share tokens, cookies, or connection JSON.**",
         "data": {
           "connection_details": "New connection details (private JSON)"
         }
