@@ -187,6 +187,10 @@ python -m compileall -q custom_components/nourish
 
 The repository includes a lightweight GitHub Actions test workflow. End-to-end Home Assistant installation, reauthentication behavior, and sensor mapping should be tested before treating the project as production-ready. Contributions and sanitized response *shapes* are welcome, but **never include real credentials, patient IDs, or identifiable nutrition data** in an issue or pull request.
 
+## Branding and trademarks
+
+The community integration includes a **Bloom-inspired, unofficial icon** for identification in Home Assistant. It is a recreation rather than an official Nourish-supplied asset. Nourish's name and original brand mark belong to Nourish, Inc. Their use does not imply affiliation or endorsement; consider obtaining permission before distributing official brand assets.
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Integration source code is MIT licensed. See [LICENSE](LICENSE). This license does not grant rights to Nourish's trademarks.
