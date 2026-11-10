@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry, ConfigEntryAuthFailed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -12,12 +14,20 @@ from .api import NourishAuthError, NourishClient, NourishConnectionError
 from .const import CONF_REFRESH_TOKEN
 from .models import DailyGoals, parse_goals_response
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class NourishCoordinator(DataUpdateCoordinator[DailyGoals]):
     """Refresh on demand, at startup and through the nightly scheduled task."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        super().__init__(hass, name="Nourish Nutrition", update_interval=None)
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name="Nourish Nutrition",
+            update_interval=None,
+        )
         self.entry = entry
         self.client = NourishClient(
             async_get_clientsession(hass),
