@@ -52,58 +52,69 @@ For more information, see the [official Home Assistant Marketplace instructions]
 
 ```javascript
 (() => {
-  const key = Object.keys(localStorage).find(
-    item => item.includes("auth0spajs") && item.includes("offline_access")
+  // Read the existing signed-in Nourish session on this tab.
+  const keys = Object.keys(localStorage);
+  const authKey = keys.find(
+    key => key.includes("auth0spajs") && key.includes("offline_access")
   );
-  if (!key) {
-    console.error("No Nourish session found. Sign in and reload.");
-    return;
-  }
-
-  let auth;
-  try {
-    auth = JSON.parse(localStorage.getItem(key));
-  } catch {
-    console.error("Nourish session data could not be decoded.");
-    return;
-  }
-
-  const refreshToken = auth?.body?.refresh_token;
-  const clientId = auth?.client_id;
-  const accessToken = auth?.body?.access_token;
-  if (!refreshToken || !clientId || !accessToken) {
-    console.error("Required session data is missing. Sign in again.");
+  if (!authKey) {
+    console.error("No Nourish session found. Sign in and reload this page.");
     return;
   }
 
   try {
-    const jwtPayload = accessToken.split(".")[1];
-    const base64 = jwtPayload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-    const claims = JSON.parse(atob(padded));
-    const patientId = claims["https://app.usenourish.com/patientId"];
-    if (!patientId) {
-      console.error("Could not find your patient ID in the session.");
+    const auth = JSON.parse(localStorage.getItem(authKey));
+    const refreshToken = auth?.body?.refresh_token;
+    // Depending on the Auth0 cache version, the client ID is in the body or the key.
+    const clientId = auth?.body?.client_id || auth?.client_id || authKey.split("::")[1];
+
+    // Nourish currently stores patientId in a separate Auth0 user entry.
+    const userKey = keys.find(
+      key => key.includes("auth0spajs") && key.includes("@@user@@") &&
+        key.split("::")[1] === clientId
+    ) || keys.find(
+      key => key.includes("auth0spajs") && key.includes("@@user@@")
+    );
+    const user = userKey ? JSON.parse(localStorage.getItem(userKey)) : null;
+    let patientId = user?.decodedToken?.claims?.["https://app.usenourish.com/patientId"];
+
+    // Fallback for sessions that include the patient ID in the access token.
+    if (!patientId && typeof auth?.body?.access_token === "string") {
+      try {
+        const jwtPart = auth.body.access_token.split(".")[1];
+        const base64 = jwtPart.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+        const claims = JSON.parse(atob(padded));
+        patientId = claims["https://app.usenourish.com/patientId"];
+      } catch {
+        // The separate user entry is the primary source; no token is logged.
+      }
+    }
+
+    if (!refreshToken || !clientId || !patientId) {
+      console.error("Missing Nourish connection details. Try signing out and in again.");
       return;
     }
 
     const details = {
-      clientId,
+      clientId: String(clientId),
       patientId: String(patientId),
       refreshToken,
       deviceTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
 
-    // Only copies data to your own clipboard. No network request is made.
+    // Copy only: never print credentials or send them to a third party.
     copy(JSON.stringify(details));
     console.log("Connection details copied to clipboard. Keep them private.");
   } catch {
-    console.error("Could not prepare connection details. Sign in again.");
+    console.error("Nourish session data could not be read. Sign in again.");
   }
 })();
 ```
 
-The helper copies a JSON object containing `patientId`, `clientId`, `refreshToken`, and `deviceTimeZone`. **Treat the whole JSON as a secret**. It can provide access to sensitive health information. The helper does not expose your access token in the output.
+The helper copies a JSON object containing `patientId`, `clientId`, `refreshToken`, and `deviceTimeZone`. It obtains the patient ID from Nourish's separate Auth0 `@@user@@` cache entry and reads the client ID from the session body or the Auth0 storage key. **Treat the whole JSON as a secret**: it can provide access to sensitive health information. The helper does not print credentials or include your access token in its output.
+
+**Important:** Do **not** paste these values into GitHub Secrets, GitHub issues, or this chat. GitHub Secrets are not needed to configure this integration. Paste only into the private **Connection details** field in Home Assistant. If you previously ran a helper that printed `NOURISH_CLIENT_ID=...` lines, rerun the updated helper to get the JSON format Home Assistant expects.
 
 ### 3. Add the integration
 
@@ -160,7 +171,7 @@ The integration refreshes OAuth credentials through `POST https://auth.nourish.c
 | Symptom | What to do |
 |---|---|
 | Integration not found | Restart Home Assistant after installing through **Settings → Marketplace**; verify the GitHub repository was added as an **Integration** |
-| Invalid connection details | Run the helper again and paste the **entire JSON** without modifying field names |
+| Invalid connection details | Use the updated helper (patient ID comes from the separate Auth0 user entry); paste the **entire JSON** without modifying field names |
 | Login rejected | Re-sign in to Nourish and repeat the helper in a separate browser profile |
 | Repair notification | Open **Settings → System → Repairs**, select Nourish reauthentication, and follow the instructions |
 | Sensors show unknown | Press Sync now; Nourish may not have data for today's nutrient or may use a currently unsupported progress format |
