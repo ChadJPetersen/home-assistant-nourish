@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Nourish Nutrition",
+        "description": "Follow the setup guide in the GitHub README. Paste the private connection JSON from the browser helper. This JSON includes a sensitive refresh token.",
+        "data": {
+          "connection_details": "Connection details (private JSON)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Nourish Nutrition",
+        "description": "Nourish rejected your saved session. To repair: (1) Open Nourish and sign in using a private browser window or separate browser profile. (2) Follow the Copy connection details instructions in the integration README. (3) Paste the new private JSON below. (4) Submit to test and reconnect. Do not share the JSON, cookies or tokens.",
+        "data": {
+          "connection_details": "New connection details (private JSON)"
+        }
+      }
+    },
+    "error": {
+      "invalid_details": "The connection details are missing or invalid.",
+      "invalid_auth": "Nourish rejected the credentials. Sign in again and copy fresh details.",
+      "cannot_connect": "Could not connect to Nourish. Try again later.",
+      "different_account": "These connection details belong to a different Nourish account."
+    },
+    "abort": {
+      "single_instance_allowed": "Only one Nourish Nutrition integration is supported.",
+      "reauth_successful": "Nourish Nutrition has been reconnected."
+    }
+  }
+}
