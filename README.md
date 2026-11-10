@@ -1,6 +1,6 @@
 # Nourish Nutrition for Home Assistant
 
-An experimental, community-built, **HACS-installable** Home Assistant integration for the Nourish nutrition tracking website. It displays your logged nutrient progress and goals as Home Assistant sensors, automatically syncs at **11:56 PM** Home Assistant local time, and offers a **Sync now** button and action.
+An experimental, community-built, **Marketplace-installable** Home Assistant integration for the Nourish nutrition tracking website. It displays your logged nutrient progress and goals as Home Assistant sensors, automatically syncs at **11:56 PM** Home Assistant local time, and offers a **Sync now** button and action.
 
 > **Early preview / unofficial integration.** Not affiliated with Nourish. This project uses a browser-observed **undocumented** endpoint and has **not yet been tested end-to-end in a real Home Assistant installation**. The interface and authentication behavior may change. Nourish's terms may restrict automated access; use only with authorization. Do not share tokens, cookies, browser console outputs containing secrets, or private nutrition data. If you are not comfortable with the technical browser step, wait for an officially supported sign-in method.
 
@@ -13,20 +13,28 @@ An experimental, community-built, **HACS-installable** Home Assistant integratio
 - Automatic access-token refreshing using a refresh token, including handling **rotated refresh tokens**.
 - Built-in Home Assistant **Repairs → Reauthentication** when the saved credentials stop working.
 
-**Important limitations:** There is no direct official OAuth authorization flow in Home Assistant. Setup uses a one-time browser helper to copy secret connection details. The refresh token may be revoked or invalidated by a different browser session. Currently there is **no historical backfill**, and the only API call is `/todays-goals`. Some responses may use progress objects not yet supported by the parser, in which case progress sensors show `unknown`, not invented values. This integration has not been verified for inclusion in the default HACS directory.
+**Important limitations:** There is no direct official OAuth authorization flow in Home Assistant. Setup uses a one-time browser helper to copy secret connection details. The refresh token may be revoked or invalidated by a different browser session. Currently there is **no historical backfill**, and the only API call is `/todays-goals`. Some responses may use progress objects not yet supported by the parser, in which case progress sensors show `unknown`, not invented values. This integration has not been verified for inclusion in the default Marketplace catalog.
 
 ## Installation
 
-### 1. Install from HACS
+### 1. Install from Home Assistant Marketplace (Home Assistant 2026.11+)
 
-1. Make sure [Home Assistant](https://www.home-assistant.io/) and [HACS](https://www.hacs.xyz/) are installed.
-2. In Home Assistant, open **HACS**.
-3. Open the three-dot menu and choose **Custom repositories**.
-4. Paste `https://github.com/ChadJPetersen/home-assistant-nourish`.
-5. Choose **Integration** as the category and add it.
-6. Find **Nourish Nutrition**, select **Download**, and restart Home Assistant.
+**Marketplace is built into Home Assistant 2026.11 and newer.** You do not need to install HACS separately. This project is not yet in the default Marketplace catalog, so add it using its GitHub link:
 
-If you do not have HACS, you can instead copy the `custom_components/nourish` folder into the `custom_components` directory inside your Home Assistant configuration folder, then restart.
+1. In Home Assistant, sign in as an **administrator** and go to **Settings → Marketplace**.
+2. If this is your first visit, review and accept the Marketplace warning.
+3. Select **Add from link** in the upper-right corner.
+4. If prompted, **connect your GitHub account** using the guided device sign-in. A GitHub connection is required for custom repositories; it grants Marketplace read-only access to public GitHub data.
+5. In **GitHub link**, paste `https://github.com/ChadJPetersen/home-assistant-nourish` and select **Add**.
+6. Marketplace should identify the repository as an **Integration**. If prompted to choose a type, choose **Integration** and select **Add** again.
+7. Open **Nourish Nutrition** from the Marketplace listing, select **Install**, and **restart Home Assistant** if prompted.
+8. Continue with **Step 2: Obtain connection details** below, then go to **Settings → Devices & services → Add integration** to configure Nourish.
+
+If you use **Home Assistant older than 2026.11**, follow the legacy [HACS](https://www.hacs.xyz/) custom-repository installation workflow instead.
+
+**Manual installation:** You can copy the `custom_components/nourish` folder into the `custom_components` directory inside your Home Assistant configuration folder, then restart. Marketplace is recommended because it handles updates.
+
+For more information, see the [official Home Assistant Marketplace instructions](https://www.home-assistant.io/integrations/marketplace/#custom-repositories).
 
 ### 2. Obtain connection details
 
@@ -151,7 +159,7 @@ The integration refreshes OAuth credentials through `POST https://auth.nourish.c
 
 | Symptom | What to do |
 |---|---|
-| Integration not found | Restart Home Assistant after installing with HACS; verify you chose **Integration** |
+| Integration not found | Restart Home Assistant after installing through **Settings → Marketplace**; verify the GitHub repository was added as an **Integration** |
 | Invalid connection details | Run the helper again and paste the **entire JSON** without modifying field names |
 | Login rejected | Re-sign in to Nourish and repeat the helper in a separate browser profile |
 | Repair notification | Open **Settings → System → Repairs**, select Nourish reauthentication, and follow the instructions |
